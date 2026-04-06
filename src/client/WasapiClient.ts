@@ -286,6 +286,28 @@ export class WasapiClient {
       const client = new WasapiClient(config);
       return client.build(ApiClass);
     }
+
+    /**
+     * Returns a raw WasapiClient instance for direct execute() calls
+     * without needing a decorated API class.
+     */
+    buildRaw(): WasapiClient {
+      if (!this.#baseUrl) {
+        throw new WasapiException('baseUrl is required. Call setBaseUrl() before buildRaw().');
+      }
+
+      const config: ClientConfig = {
+        baseUrl: this.#baseUrl,
+        headers: this.#headers,
+        timeout: this.#timeout,
+        logHeaders: this.#logHeaders,
+        logRequestBody: this.#logRequestBody,
+        detailedLogging: this.#detailedLogging,
+        followRedirects: this.#followRedirects,
+      };
+
+      return new WasapiClient(config);
+    }
   };
 }
 
