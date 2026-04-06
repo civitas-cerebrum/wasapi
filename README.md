@@ -126,9 +126,7 @@ class CacheApi {
 |--------|-------------|---------|
 | `setBaseUrl(url)` | Base URL for all requests | *required* |
 | `setHeaders(headers)` | Default headers (merged per-request) | `{}` |
-| `setTimeout(seconds)` | Request timeout | `60` |
-| `setProxy(host, port)` | HTTP proxy | `null` |
-| `setHostnameVerification(bool)` | TLS hostname verification | `true` |
+| `setTimeout(seconds)` | Request timeout in seconds | `60` |
 | `setLogHeaders(bool)` | Log request headers | `true` |
 | `setLogRequestBody(bool)` | Log request body | `false` |
 | `setDetailedLogging(bool)` | Log response body | `false` |
@@ -210,6 +208,22 @@ DEBUG=wasapi:request npx tsx tests/my-test.ts
 | `Caller.perform(call, strict, printBody)` | `apiCall.perform(strict, printBody)` |
 | `WasapiUtilities.monitorResponseCode()` | `apiCall.monitorResponseCode()` |
 | Extend `WasapiUtilities` | No inheritance needed — all on `ApiCall<T>` |
+
+## Important Notes
+
+**Argument order matters.** Body-bearing methods (`@POST`, `@PUT`, `@PATCH`) take `(body, pathParams?, queryParams?, options?)`. Non-body methods (`@GET`, `@DELETE`) take `(pathParams?, queryParams?, options?)`. TypeScript enforces this at compile time, but be careful when constructing calls dynamically.
+
+**`perform()` returns `null` in lenient mode** for both empty successful responses (e.g., 204) and failed requests. If you need to distinguish these cases, use `getResponse()` which gives you the full `ApiResponse<T>` with status code.
+
+**Response body is a plain JSON object**, not a class instance. `ApiCall<User>.perform()` returns a plain object shaped as `User`, not an instance of `User` with methods. This is standard TypeScript REST client behavior (same as axios, ky, etc.).
+
+**Timeout units:** Builder's `setTimeout()` is in **seconds**. Polling methods (`monitorResponseCode`, `monitorFieldValue`) take **milliseconds** for timeout and interval.
+
+**FormData via options:** To send multipart requests through the decorator path, pass `formData` in the options parameter:
+```typescript
+const form = WasapiClient.getMultipartFromFile('./photo.jpg', 'avatar');
+await api.uploadAvatar(undefined, undefined, { formData: form }).perform(true);
+```
 
 ## License
 

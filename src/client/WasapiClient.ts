@@ -1,5 +1,5 @@
 import { ContextStore } from '@civitas-cerebrum/context-store';
-import { ClientConfig, HttpMethod, RequestConfig } from '../models/types';
+import { CallOptions, ClientConfig, HttpMethod, RequestConfig } from '../models/types';
 import { ApiResponse } from '../models/ApiResponse';
 import { ApiCall } from '../models/ApiCall';
 import { WasapiException } from '../exceptions/WasapiException';
@@ -35,7 +35,8 @@ export class WasapiClient {
       init.body = requestConfig.formData;
     } else if (requestConfig.body !== undefined) {
       init.body = JSON.stringify(requestConfig.body);
-      if (!headers['Content-Type'] && !headers['content-type']) {
+      const hasContentType = Object.keys(headers).some(k => k.toLowerCase() === 'content-type');
+      if (!hasContentType) {
         (init.headers as Record<string, string>)['Content-Type'] = 'application/json';
       }
     }
@@ -86,11 +87,20 @@ export class WasapiClient {
   private buildUrl(config: RequestConfig): string {
     let path = config.path;
 
-    // Substitute path params — :param style
+    // Substitute path params — :param style (replaceAll for repeated params)
     if (config.pathParams) {
       for (const [key, value] of Object.entries(config.pathParams)) {
-        path = path.replace(`:${key}`, encodeURIComponent(value));
+        path = path.replaceAll(`:${key}`, encodeURIComponent(value));
       }
+    }
+
+    // Validate no unmatched params remain
+    const unmatched = path.match(/:([a-zA-Z_]\w*)/g);
+    if (unmatched) {
+      throw new WasapiException(
+        `Unmatched path parameters in "${config.path}": ${unmatched.join(', ')}. ` +
+        `Provide values via pathParams.`
+      );
     }
 
     const base = this.config.baseUrl.replace(/\/+$/, '');
@@ -133,20 +143,20 @@ export class WasapiClient {
           let body: unknown | undefined;
           let pathParams: Record<string, string> | undefined;
           let queryParams: Record<string, string> | undefined;
-          let options: { headers?: Record<string, string>; timeout?: number } | undefined;
+          let options: CallOptions | undefined;
 
           if (hasBody) {
             [body, pathParams, queryParams, options] = args as [
               unknown,
               Record<string, string>?,
               Record<string, string>?,
-              { headers?: Record<string, string>; timeout?: number }?,
+              CallOptions?,
             ];
           } else {
             [pathParams, queryParams, options] = args as [
               Record<string, string>?,
               Record<string, string>?,
-              { headers?: Record<string, string>; timeout?: number }?,
+              CallOptions?,
             ];
           }
 
@@ -158,6 +168,7 @@ export class WasapiClient {
             queryParams,
             headers: options?.headers,
             timeout: options?.timeout,
+            formData: options?.formData,
           };
 
           return new ApiCall(client, requestConfig);

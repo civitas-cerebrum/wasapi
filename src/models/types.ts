@@ -32,4 +32,5 @@ export interface ClientConfig {
 export interface CallOptions {
   headers?: Record<string, string>;
   timeout?: number;
+  formData?: FormData;
 }

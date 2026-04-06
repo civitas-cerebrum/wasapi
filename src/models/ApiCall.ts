@@ -122,7 +122,7 @@ export class ApiCall<T> {
     const deadline = Date.now() + timeout;
 
     while (Date.now() < deadline) {
-      const response = await this.clone().client.execute<T>(this.config);
+      const response = await this.client.execute<T>(this.config);
 
       if (response.status === expectedCode) {
         log.success('Response code matched: %d', expectedCode);
@@ -155,7 +155,7 @@ export class ApiCall<T> {
     const deadline = Date.now() + timeout;
 
     while (Date.now() < deadline) {
-      const response = await this.clone().client.execute<T>(this.config);
+      const response = await this.client.execute<T>(this.config);
 
       if (response.body !== null) {
         const actual = getNestedField(response.body, fieldPath);
@@ -178,12 +178,27 @@ export class ApiCall<T> {
 function deserializeError(rawBody: string, errorModels: Array<new () => unknown>): unknown | null {
   if (errorModels.length === 0 || !rawBody) return null;
 
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(rawBody) as Record<string, unknown>;
+  } catch {
+    log.warn('Failed to parse error body as JSON');
+    return null;
+  }
+
+  const parsedKeys = new Set(Object.keys(parsed));
+
   for (const Model of errorModels) {
     try {
-      const parsed = JSON.parse(rawBody) as Record<string, unknown>;
-      return Object.assign(new Model() as object, parsed);
+      const instance = new Model() as object;
+      const modelKeys = Object.keys(instance);
+      // If model has defined keys, check at least one matches the parsed response
+      if (modelKeys.length > 0 && !modelKeys.some(k => parsedKeys.has(k))) {
+        continue;
+      }
+      return Object.assign(instance, parsed);
     } catch {
-      log.warn('Failed to deserialize error body into %s', Model.name || 'anonymous');
+      log.warn('Failed to instantiate error model %s', Model.name || 'anonymous');
       continue;
     }
   }
