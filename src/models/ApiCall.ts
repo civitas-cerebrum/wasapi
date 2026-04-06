@@ -120,21 +120,23 @@ export class ApiCall<T> {
     interval = 1000,
   ): Promise<ApiResponse<T>> {
     const deadline = Date.now() + timeout;
+    let lastResponse: ApiResponse<T> | null = null;
 
     while (Date.now() < deadline) {
-      const response = await this.client.execute<T>(this.config);
+      lastResponse = await this.client.execute<T>(this.config);
 
-      if (response.status === expectedCode) {
+      if (lastResponse.status === expectedCode) {
         log.success('Response code matched: %d', expectedCode);
-        return response;
+        return lastResponse;
       }
 
-      log.info('Waiting for %d, got %d — retrying in %dms', expectedCode, response.status, interval);
+      log.info('Waiting for %d, got %d — retrying in %dms', expectedCode, lastResponse.status, interval);
       await sleep(interval);
     }
 
     throw new WasapiException(
       `Timed out after ${timeout}ms waiting for response code ${expectedCode} on ${this.config.method} ${this.config.path}`,
+      lastResponse,
     );
   }
 
@@ -153,15 +155,16 @@ export class ApiCall<T> {
     interval = 1000,
   ): Promise<T> {
     const deadline = Date.now() + timeout;
+    let lastResponse: ApiResponse<T> | null = null;
 
     while (Date.now() < deadline) {
-      const response = await this.client.execute<T>(this.config);
+      lastResponse = await this.client.execute<T>(this.config);
 
-      if (response.body !== null) {
-        const actual = getNestedField(response.body, fieldPath);
+      if (lastResponse.body !== null) {
+        const actual = getNestedField(lastResponse.body, fieldPath);
         if (String(actual) === String(expectedValue)) {
           log.success('Field "%s" matched: %s', fieldPath, expectedValue);
-          return response.body;
+          return lastResponse.body;
         }
         log.info('Field "%s" = %s, expected %s — retrying in %dms', fieldPath, actual, expectedValue, interval);
       }
@@ -171,6 +174,7 @@ export class ApiCall<T> {
 
     throw new WasapiException(
       `Timed out after ${timeout}ms waiting for field "${fieldPath}" to equal "${expectedValue}" on ${this.config.method} ${this.config.path}`,
+      lastResponse,
     );
   }
 }

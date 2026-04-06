@@ -1,6 +1,9 @@
 export class WasapiException extends Error {
-  constructor(message: string) {
+  readonly lastResponse: unknown;
+
+  constructor(message: string, lastResponse?: unknown) {
     super(message);
     this.name = 'WasapiException';
+    this.lastResponse = lastResponse ?? null;
   }
 }
