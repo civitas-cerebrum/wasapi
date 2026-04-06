@@ -30,11 +30,7 @@ jobs:
         run: npm run build
 
       - name: 🐳 Start BookHive API
-        run: |
-          git clone --depth 1 https://github.com/umutayb/book-hive.git /tmp/book-hive
-          cd /tmp/book-hive
-          docker compose up --build -d
-          cd $GITHUB_WORKSPACE
+        run: docker compose up -d
 
       - name: ⏳ Wait for API readiness
         run: |
