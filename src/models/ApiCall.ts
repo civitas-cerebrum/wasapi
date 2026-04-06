@@ -33,10 +33,10 @@ export class ApiCall<T> {
   /**
    * Execute the request and return the parsed body.
    *
-   * @param strict - If true, throws FailedCallException on non-2xx. Default: false.
+   * @param strict - If true, throws FailedCallException on non-2xx (with deserialized error attached). Default: false.
    * @param printBody - If true, logs the response body. Default: false.
    * @param errorModels - Constructor functions to try deserializing the error body.
-   * @returns The parsed response body, or null in lenient mode on failure.
+   * @returns The parsed response body, or deserialized error in lenient mode, or null.
    */
   async perform(strict = false, printBody = false, ...errorModels: Array<new () => unknown>): Promise<T | null> {
     const response = await this.client.execute<T>(this.config);
@@ -49,35 +49,32 @@ export class ApiCall<T> {
       return response.body;
     }
 
-    // Failed response
+    // Deserialize error body if models provided
+    const deserializedError = deserializeError(response.rawBody, errorModels);
+
+    // Strict mode — throw with deserialized error attached
     if (strict) {
       throw new FailedCallException(
         `${this.config.method} ${this.config.path} failed with ${response.status} ${response.statusText}`,
         response.status,
         response.rawBody,
         this.config.path,
+        deserializedError,
       );
     }
 
-    // Lenient mode — try to deserialize error body
-    if (errorModels.length > 0 && response.rawBody) {
-      for (const Model of errorModels) {
-        try {
-          const parsed = JSON.parse(response.rawBody) as Record<string, unknown>;
-          return Object.assign(new Model() as object, parsed) as T | null;
-        } catch {
-          continue;
-        }
-      }
-    }
-
-    return null;
+    // Lenient mode — return deserialized error or null
+    return (deserializedError as T | null) ?? null;
   }
 
   /**
    * Execute and return the full ApiResponse wrapper.
+   *
+   * @param strict - If true, throws FailedCallException on non-2xx (with deserialized error attached). Default: false.
+   * @param printBody - If true, logs the response body. Default: false.
+   * @param errorModels - Constructor functions to try deserializing the error body.
    */
-  async getResponse(strict = false, printBody = false): Promise<ApiResponse<T>> {
+  async getResponse(strict = false, printBody = false, ...errorModels: Array<new () => unknown>): Promise<ApiResponse<T>> {
     const response = await this.client.execute<T>(this.config);
 
     if (printBody && response.rawBody) {
@@ -85,11 +82,13 @@ export class ApiCall<T> {
     }
 
     if (!response.isSuccessful() && strict) {
+      const deserializedError = deserializeError(response.rawBody, errorModels);
       throw new FailedCallException(
         `${this.config.method} ${this.config.path} failed with ${response.status} ${response.statusText}`,
         response.status,
         response.rawBody,
         this.config.path,
+        deserializedError,
       );
     }
 
@@ -176,6 +175,20 @@ export class ApiCall<T> {
       `Timed out after ${timeout}ms waiting for field "${fieldPath}" to equal "${expectedValue}" on ${this.config.method} ${this.config.path}`,
     );
   }
+}
+
+function deserializeError(rawBody: string, errorModels: Array<new () => unknown>): unknown | null {
+  if (errorModels.length === 0 || !rawBody) return null;
+
+  for (const Model of errorModels) {
+    try {
+      const parsed = JSON.parse(rawBody) as Record<string, unknown>;
+      return Object.assign(new Model() as object, parsed);
+    } catch {
+      continue;
+    }
+  }
+  return null;
 }
 
 function sleep(ms: number): Promise<void> {

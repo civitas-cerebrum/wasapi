@@ -289,6 +289,44 @@ async function main() {
     assert(result === null, 'expected null in lenient mode');
   });
 
+  // ── Error Models ──
+  console.log('\n── Error Models ──');
+
+  await test('strict mode with errorModels attaches deserialized errorBody to FailedCallException', async () => {
+    const loginApi = buildPublicApi(AuthApi);
+    try {
+      // Login with wrong creds returns 401 with JSON: {"error":"login_failed","message":"Invalid credentials"}
+      await loginApi.login({ email: 'wrong@test.com', password: 'wrong' }).perform(true, false, ErrorBody);
+      assert(false, 'should have thrown');
+    } catch (err) {
+      assert(err instanceof FailedCallException, `expected FailedCallException, got ${(err as Error).constructor.name}`);
+      const ex = err as FailedCallException;
+      assert(ex.statusCode === 401, `expected 401, got ${ex.statusCode}`);
+      assert(ex.errorBody !== null, 'errorBody should be attached to exception');
+      assert((ex.errorBody as ErrorBody).message === 'Invalid credentials', `expected "Invalid credentials", got "${(ex.errorBody as ErrorBody).message}"`);
+    }
+  });
+
+  await test('lenient mode with errorModels returns deserialized error body', async () => {
+    const loginApi = buildPublicApi(AuthApi);
+    const result = await loginApi.login({ email: 'wrong@test.com', password: 'wrong' }).perform(false, false, ErrorBody);
+    assert(result !== null, 'should return deserialized error, not null');
+    assert((result as unknown as ErrorBody).message === 'Invalid credentials', 'should have error message');
+  });
+
+  await test('getResponse() strict with errorModels attaches error to exception', async () => {
+    const loginApi = buildPublicApi(AuthApi);
+    try {
+      await loginApi.login({ email: 'wrong@test.com', password: 'wrong' }).getResponse(true, false, ErrorBody);
+      assert(false, 'should have thrown');
+    } catch (err) {
+      assert(err instanceof FailedCallException, `expected FailedCallException, got ${(err as Error).constructor.name}`);
+      const ex = err as FailedCallException;
+      assert(ex.errorBody !== null, 'errorBody should be attached');
+      assert((ex.errorBody as ErrorBody).message === 'Invalid credentials', 'should have deserialized error message');
+    }
+  });
+
   // ── ApiCall.getResponsePair() ──
   console.log('\n── getResponsePair() ──');
 
