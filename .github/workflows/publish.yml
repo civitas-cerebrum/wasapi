@@ -1,0 +1,59 @@
+name: 🚀 Publish Package
+
+on:
+  push:
+    tags:
+      - '*'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🗂️ Checkout repository
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          registry-url: https://registry.npmjs.org
+
+      - name: 🧩 Install dependencies
+        run: npm ci
+
+      - name: 🛠️ Build package
+        run: npm run build --if-present
+
+      - name: 🐳 Start BookHive API
+        run: |
+          git clone --depth 1 https://github.com/umutayb/book-hive.git /tmp/book-hive
+          cd /tmp/book-hive
+          docker compose up --build -d
+          cd $GITHUB_WORKSPACE
+
+      - name: ⏳ Wait for API readiness
+        run: |
+          for i in $(seq 1 30); do
+            if curl -s http://localhost:8080/api/health | grep -q '"healthy"'; then
+              echo "API is ready"
+              break
+            fi
+            echo "Waiting for API... ($i/30)"
+            sleep 2
+          done
+
+      - name: 🌱 Seed test data
+        run: curl -s -X POST http://localhost:8080/api/reset
+
+      - name: 🧪 Run All Tests
+        run: npx tsx tests/book-hive.test.ts
+
+      - name: 📦 Publish Package
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

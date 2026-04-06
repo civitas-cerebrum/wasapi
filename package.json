@@ -1,0 +1,38 @@
+{
+  "name": "@civitas-cerebrum/wasapi",
+  "version": "0.0.1",
+  "description": "A lightweight REST API client library with fluent builder, typed responses, and decorator-based API definitions.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "npm run clean && tsc",
+    "test": "npx tsx tests/book-hive.test.ts",
+    "test:coverage": "npx test-coverage",
+    "prepublishOnly": "npm run build"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@civitas-cerebrum/context-store": "^0.0.2",
+    "@civitas-cerebrum/test-coverage": "^0.0.9",
+    "debug": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/debug": "^4.1.13",
+    "@types/node": "^20.0.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/civitas-cerebrum/wasapi.git"
+  },
+  "author": "Umut Ay Bora",
+  "license": "MIT"
+}

@@ -1,0 +1,8 @@
+/dist
+/node_modules
+*.tgz
+.DS_Store
+.env
+.env.local
+test-coverage-report.md
+test-coverage-report.txt
