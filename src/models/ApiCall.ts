@@ -21,9 +21,7 @@ export class ApiCall<T> {
   }
 
   get method(): string {
-    return typeof this.config.method === 'string'
-      ? this.config.method
-      : this.config.method;
+    return this.config.method as string;
   }
 
   get path(): string {
@@ -185,6 +183,7 @@ function deserializeError(rawBody: string, errorModels: Array<new () => unknown>
       const parsed = JSON.parse(rawBody) as Record<string, unknown>;
       return Object.assign(new Model() as object, parsed);
     } catch {
+      log.warn('Failed to deserialize error body into %s', Model.name || 'anonymous');
       continue;
     }
   }

@@ -23,8 +23,6 @@ export interface ClientConfig {
   baseUrl: string;
   headers: Record<string, string>;
   timeout: number;
-  proxy: { host: string; port: number } | null;
-  hostnameVerification: boolean;
   logHeaders: boolean;
   logRequestBody: boolean;
   detailedLogging: boolean;

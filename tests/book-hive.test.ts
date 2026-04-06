@@ -501,6 +501,26 @@ async function main() {
     assert(err === null, 'errorBody should be null on success');
   });
 
+  // ── Multipart Utilities ──
+  console.log('\n── Multipart Utilities ──');
+
+  await test('getMultipartFromFile creates FormData from file', async () => {
+    const formData = WasapiClient.getMultipartFromFile('package.json', 'file');
+    assert(formData instanceof FormData, 'should return FormData');
+    assert(formData.has('file'), 'should have the "file" field');
+  });
+
+  await test('getRequestBodyFromFile reads file with mime type', async () => {
+    const result = WasapiClient.getRequestBodyFromFile('package.json', 'application/json');
+    assert(result.buffer instanceof Buffer, 'should return Buffer');
+    assert(result.mediaType === 'application/json', `expected application/json, got ${result.mediaType}`);
+  });
+
+  await test('getRequestBodyFromFile auto-detects mime type', async () => {
+    const result = WasapiClient.getRequestBodyFromFile('package.json');
+    assert(result.mediaType === 'application/json', `expected auto-detected application/json, got ${result.mediaType}`);
+  });
+
   // ── Summary ──
   console.log(`\n── Results: ${passed} passed, ${failed} failed ──\n`);
   process.exit(failed > 0 ? 1 : 0);

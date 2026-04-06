@@ -4,7 +4,9 @@ import { ApiResponse } from '../models/ApiResponse';
 import { ApiCall } from '../models/ApiCall';
 import { WasapiException } from '../exceptions/WasapiException';
 import { httpMetadata } from '../decorators/http';
-import { log, createLogger } from '../logger/Logger';
+import { createLogger } from '../logger/Logger';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const BODY_METHODS = new Set([HttpMethod.POST, HttpMethod.PUT, HttpMethod.PATCH]);
 
@@ -23,7 +25,7 @@ export class WasapiClient {
 
     // Build fetch options
     const init: RequestInit = {
-      method: typeof requestConfig.method === 'string' ? requestConfig.method : requestConfig.method,
+      method: requestConfig.method as string,
       headers,
       redirect: this.config.followRedirects ? 'follow' : 'manual',
     };
@@ -164,12 +166,46 @@ export class WasapiClient {
     }) as T;
   }
 
+  // ── Multipart Utilities ──────────────────────────────────────
+
+  /**
+   * Create a FormData multipart body from a file path.
+   * Mirrors Java's `WasapiUtilities.getMultipartFromFile(file, name, mediaType)`.
+   *
+   * @param filePath - Path to the file on disk.
+   * @param fieldName - The form field name for the file part.
+   * @param mediaType - Optional MIME type. Auto-detected from extension if omitted.
+   */
+  static getMultipartFromFile(filePath: string, fieldName: string, mediaType?: string): FormData {
+    const buffer = fs.readFileSync(filePath);
+    const fileName = path.basename(filePath);
+    const mime = mediaType ?? guessMimeType(fileName);
+    const blob = new Blob([buffer], { type: mime });
+
+    const formData = new FormData();
+    formData.append(fieldName, blob, fileName);
+    return formData;
+  }
+
+  /**
+   * Read a file into a Buffer with its MIME type.
+   * Mirrors Java's `WasapiUtilities.getRequestBodyFromFile(file, mediaType)`.
+   *
+   * @param filePath - Path to the file on disk.
+   * @param mediaType - Optional MIME type. Auto-detected from extension if omitted.
+   */
+  static getRequestBodyFromFile(filePath: string, mediaType?: string): { buffer: Buffer; mediaType: string } {
+    const buffer = fs.readFileSync(filePath);
+    const mime = mediaType ?? guessMimeType(path.basename(filePath));
+    return { buffer, mediaType: mime };
+  }
+
+  // ── Builder ──────────────────────────────────────────────────
+
   static Builder = class Builder {
     #baseUrl = '';
     #headers: Record<string, string> = {};
     #timeout = 60;
-    #proxy: { host: string; port: number } | null = null;
-    #hostnameVerification = true;
     #logHeaders = true;
     #logRequestBody = false;
     #detailedLogging = false;
@@ -182,16 +218,7 @@ export class WasapiClient {
         this.#logHeaders = store.getBoolean('wasapi.logHeaders', true);
         this.#logRequestBody = store.getBoolean('wasapi.logRequestBody', false);
         this.#detailedLogging = store.getBoolean('wasapi.detailedLogging', false);
-        this.#hostnameVerification = store.getBoolean('wasapi.hostnameVerification', true);
         this.#followRedirects = store.getBoolean('wasapi.followRedirects', false);
-
-        const proxyHost = store.get<string>('wasapi.proxyHost', '');
-        if (proxyHost) {
-          this.#proxy = {
-            host: proxyHost,
-            port: store.getNumber('wasapi.proxyPort', 8888),
-          };
-        }
       }
     }
 
@@ -207,16 +234,6 @@ export class WasapiClient {
 
     setTimeout(seconds: number): this {
       this.#timeout = seconds;
-      return this;
-    }
-
-    setProxy(host: string, port: number): this {
-      this.#proxy = { host, port };
-      return this;
-    }
-
-    setHostnameVerification(enabled: boolean): this {
-      this.#hostnameVerification = enabled;
       return this;
     }
 
@@ -249,8 +266,6 @@ export class WasapiClient {
         baseUrl: this.#baseUrl,
         headers: this.#headers,
         timeout: this.#timeout,
-        proxy: this.#proxy,
-        hostnameVerification: this.#hostnameVerification,
         logHeaders: this.#logHeaders,
         logRequestBody: this.#logRequestBody,
         detailedLogging: this.#detailedLogging,
@@ -261,4 +276,30 @@ export class WasapiClient {
       return client.build(ApiClass);
     }
   };
+}
+
+function guessMimeType(fileName: string): string {
+  const ext = fileName.split('.').pop()?.toLowerCase();
+  const types: Record<string, string> = {
+    json: 'application/json',
+    xml: 'application/xml',
+    pdf: 'application/pdf',
+    zip: 'application/zip',
+    gz: 'application/gzip',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    gif: 'image/gif',
+    svg: 'image/svg+xml',
+    txt: 'text/plain',
+    html: 'text/html',
+    css: 'text/css',
+    js: 'application/javascript',
+    csv: 'text/csv',
+    doc: 'application/msword',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    xls: 'application/vnd.ms-excel',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  };
+  return types[ext ?? ''] ?? 'application/octet-stream';
 }
