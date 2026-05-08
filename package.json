@@ -9,10 +9,13 @@
     "build": "npm run clean && tsc",
     "test": "npx tsx tests/book-hive.test.ts",
     "test:coverage": "npx test-coverage",
+    "postinstall": "node scripts/postinstall.js",
     "prepublishOnly": "npm run build"
   },
   "files": [
-    "dist"
+    "dist",
+    "skills",
+    "scripts/postinstall.js"
   ],
   "dependencies": {
     "@civitas-cerebrum/context-store": "^0.0.2",
