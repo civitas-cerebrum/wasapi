@@ -22,7 +22,7 @@
     "debug": "^4.4.3"
   },
   "devDependencies": {
-    "@civitas-cerebrum/test-coverage": "^0.1.1",
+    "@civitas-cerebrum/test-coverage": "^0.1.2",
     "@types/debug": "^4.1.13",
     "@types/node": "^20.0.0",
     "tsx": "^4.21.0",
