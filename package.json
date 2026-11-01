@@ -1,6 +1,6 @@
 {
   "name": "@civitas-cerebrum/wasapi",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "A lightweight REST API client library with fluent builder, typed responses, and decorator-based API definitions.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -19,10 +19,10 @@
   ],
   "dependencies": {
     "@civitas-cerebrum/context-store": "^0.0.2",
-    "@civitas-cerebrum/test-coverage": "^0.0.9",
     "debug": "^4.4.3"
   },
   "devDependencies": {
+    "@civitas-cerebrum/test-coverage": "^0.1.1",
     "@types/debug": "^4.1.13",
     "@types/node": "^20.0.0",
     "tsx": "^4.21.0",
